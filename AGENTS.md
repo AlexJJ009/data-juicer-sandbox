@@ -10,7 +10,7 @@
 - 按领域分目录：hook 和 worker 放 `data_juicer_sandbox/specific_hooks/<领域>/`，实验配置放 `configs/<领域>/`，测试放 `tests/<领域>/`。
 - 自定义 hook 通过 `HOOK_MAPPING` 注册，不改上游的 pipeline 和已有 hook。hook 只负责交接，训练和评测在 worker 自己的环境里运行。
 - 先用上游已有的机制和成熟库，不重新实现已有的算法。
-- 从其他项目复制的代码放 `thirdparty/<来源>/`，注明来源仓库、commit 和许可证，复制的部分不改，适配写在我们自己的代码里。
+- 从其他项目复制的代码放在包内的 `data_juicer_sandbox/thirdparty/<来源>/`（随包安装，不新增顶层包名），附原许可证和注明来源仓库、路径、commit 的 NOTICE；复制的部分不改，适配写在我们自己的代码里。
 - 不夹带无关改动，不复制粘贴大段代码。注释、测试名和提交说明用英文，与上游一致。
 
 ## 测试

@@ -1,0 +1,128 @@
+# Initial mixtures: uniform, natural, CD8/NK-heavy, monocyte-heavy, B-heavy.
+# Natural counts: kang_2018.h5ad, excluding CD4 T cells (13435 cells).
+# Paths shared by workers use YAML anchors and can be changed at their definitions.
+project_name: single-cell-mixing
+experiment_name: kang2018
+work_dir: &run_dir /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018
+hpo_config: null
+max_iter_num: 2
+iter_updater:
+  anonymous.suggest.mixtures: anonymous.sample.extra_configs.request.mixtures
+  anonymous.evaluate.history: anonymous.evaluate.extra_configs.request.history
+execution_job_configs:
+- hook: SingleCellSampleHook
+  meta_name: sample
+  output:
+  - candidates
+  extra_configs:
+    python: &worker_python /root/autodl-tmp/task4-datajuicer/envs/single-cell/bin/python
+    request:
+      data_path: &data_path /root/autodl-tmp/task4-datajuicer/runs/refine/refined.h5ad
+      work_dir: *run_dir
+      fields: &id001
+        cell_type: cell_type
+        condition: label
+        donor: replicate
+      conditions: &id002
+        control: ctrl
+        perturbed: stim
+      holdout_cell_type: CD4 T cells
+      budget: 6000
+      mixtures:
+      - B cells: 0.14285714285714285
+        CD14+ Monocytes: 0.14285714285714285
+        CD8 T cells: 0.14285714285714285
+        Dendritic cells: 0.14285714285714285
+        FCGR3A+ Monocytes: 0.14285714285714285
+        Megakaryocytes: 0.14285714285714285
+        NK cells: 0.14285714285714285
+      - &id003
+        B cells: 0.19732043170822477
+        CD14+ Monocytes: 0.42404168217342764
+        CD8 T cells: 0.12065500558243394
+        Dendritic cells: 0.03937476739858578
+        FCGR3A+ Monocytes: 0.08105694082620023
+        Megakaryocytes: 0.009825083736509118
+        NK cells: 0.12772608857461853
+      - B cells: 0.07692307692307693
+        CD14+ Monocytes: 0.07692307692307693
+        CD8 T cells: 0.3076923076923077
+        Dendritic cells: 0.07692307692307693
+        FCGR3A+ Monocytes: 0.07692307692307693
+        Megakaryocytes: 0.07692307692307693
+        NK cells: 0.3076923076923077
+      - B cells: 0.07692307692307693
+        CD14+ Monocytes: 0.3076923076923077
+        CD8 T cells: 0.07692307692307693
+        Dendritic cells: 0.07692307692307693
+        FCGR3A+ Monocytes: 0.3076923076923077
+        Megakaryocytes: 0.07692307692307693
+        NK cells: 0.07692307692307693
+      - B cells: 0.5
+        CD14+ Monocytes: 0.08333333333333333
+        CD8 T cells: 0.08333333333333333
+        Dendritic cells: 0.08333333333333333
+        FCGR3A+ Monocytes: 0.08333333333333333
+        Megakaryocytes: 0.08333333333333333
+        NK cells: 0.08333333333333333
+      seeds:
+      - 11
+      - 23
+      - 37
+- hook: SingleCellTrainHook
+  meta_name: train
+  output:
+  - candidates
+  extra_configs:
+    python: *worker_python
+    request:
+      data_path: *data_path
+      work_dir: *run_dir
+      fields: *id001
+      conditions: *id002
+      holdout_cell_type: CD4 T cells
+      train:
+        max_epochs: 100
+        batch_size: 32
+        early_stopping: true
+        early_stopping_patience: 25
+      max_parallel: 5
+  input:
+    extra_configs.request.candidates: anonymous.sample.candidates
+evaluation_job_configs:
+- hook: SingleCellEvaluateHook
+  meta_name: evaluate
+  output:
+  - candidates
+  - history
+  extra_configs:
+    python: *worker_python
+    request:
+      data_path: *data_path
+      work_dir: *run_dir
+      fields: *id001
+      conditions: *id002
+      holdout_cell_type: CD4 T cells
+      n_degs: 100
+      metric: r2_top_degs
+      history: []
+  input:
+    extra_configs.request.candidates: anonymous.train.candidates
+- hook: SingleCellSuggestHook
+  meta_name: suggest
+  output:
+  - mixtures
+  extra_configs:
+    python: *worker_python
+    request:
+      data_path: *data_path
+      work_dir: *run_dir
+      fields: *id001
+      conditions: *id002
+      holdout_cell_type: CD4 T cells
+      n_suggestions: 5
+      seed: 0
+      num_samples: 100000
+      prior: *id003
+  input:
+    extra_configs.request.history: anonymous.evaluate.history

@@ -1,0 +1,9 @@
+Source: https://github.com/NVIDIA/NeMo-Curator
+Path: tutorials/text/nemotron-climb-data-curation/8_predict.py
+Commit: fdee8f8884cd0104772183c7938c56dbaf30841c
+Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
+fit_predictor and SEED are copied verbatim. Required imports: lightgbm, pandas.
+Upstream adaptation attribution: https://github.com/sail-sg/regmix/blob/main/regression_fitting/regression.ipynb
+License: Apache-2.0 (see LICENSE).
+Moved into data_juicer_sandbox/thirdparty/climb for package installation.
+No changes to predictor.py, including its original import paths.

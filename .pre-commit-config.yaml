@@ -37,6 +37,6 @@ repos:
 
 exclude: |
   (?x)^(
-    thirdparty/.*|
+    (?:data_juicer_sandbox/)?thirdparty/.*|
     .*\.md
   )$

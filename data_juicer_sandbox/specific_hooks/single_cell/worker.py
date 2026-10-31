@@ -15,6 +15,7 @@ from loguru import logger
 
 from .actions import evaluate, sample, train
 from .config import Request
+from .mixtures import suggest
 
 Action = Callable[[Request], dict[str, Any]]
 ACTIONS: dict[str, Action] = {}
@@ -40,6 +41,7 @@ def register_action(name: str, action: Action) -> None:
 register_action("sample", sample)
 register_action("train", train)
 register_action("evaluate", evaluate)
+register_action("suggest", suggest)
 
 
 def dispatch(request: Request) -> dict[str, Any]:

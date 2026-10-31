@@ -24,6 +24,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The tested biology stack requires Python 3.12; retain upstream core support on 3.10/3.11.
+# numpy, pandas, loguru and jsonargparse are supplied by the core py-data-juicer dependency.
+single-cell = [
+    "anndata>=0.13.4; python_version >= '3.12'",
+    "scanpy>=1.12.4; python_version >= '3.12'",
+    "pertpy[jax]>=1.4.0; python_version >= '3.12'",
+    "scipy>=1.18.1; python_version >= '3.12'",
+    "lightgbm>=4.7.0",
+]
+
 # Development & Tools
 dev = [
     "coverage",

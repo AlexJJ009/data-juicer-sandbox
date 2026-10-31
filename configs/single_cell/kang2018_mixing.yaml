@@ -1,5 +1,8 @@
-# Initial mixtures: uniform, natural, CD8/NK-heavy, monocyte-heavy, B-heavy.
-# Natural counts: kang_2018.h5ad, excluding CD4 T cells (13435 cells).
+# Initial mixtures over the 6 non-holdout types left after refinement (Megakaryocytes are
+# all removed by QC): uniform, natural, CD8/NK-heavy, monocyte-heavy, B-heavy.
+# Natural shares: runs/refine/refined.h5ad without CD4 T cells (12,996 cells).
+# budget 2400 keeps every mixture within the smallest per-condition pool
+# (Dendritic cells: 224 ctrl), so the actual mixture equals the requested one.
 # Paths shared by workers use YAML anchors and can be changed at their definitions.
 project_name: single-cell-mixing
 experiment_name: kang2018
@@ -27,44 +30,39 @@ execution_job_configs:
         control: ctrl
         perturbed: stim
       holdout_cell_type: CD4 T cells
-      budget: 6000
+      budget: 2400
       mixtures:
-      - B cells: 0.14285714285714285
-        CD14+ Monocytes: 0.14285714285714285
-        CD8 T cells: 0.14285714285714285
-        Dendritic cells: 0.14285714285714285
-        FCGR3A+ Monocytes: 0.14285714285714285
-        Megakaryocytes: 0.14285714285714285
-        NK cells: 0.14285714285714285
-      - &id003
-        B cells: 0.19732043170822477
-        CD14+ Monocytes: 0.42404168217342764
-        CD8 T cells: 0.12065500558243394
-        Dendritic cells: 0.03937476739858578
-        FCGR3A+ Monocytes: 0.08105694082620023
-        Megakaryocytes: 0.009825083736509118
-        NK cells: 0.12772608857461853
-      - B cells: 0.07692307692307693
-        CD14+ Monocytes: 0.07692307692307693
-        CD8 T cells: 0.3076923076923077
-        Dendritic cells: 0.07692307692307693
-        FCGR3A+ Monocytes: 0.07692307692307693
-        Megakaryocytes: 0.07692307692307693
-        NK cells: 0.3076923076923077
-      - B cells: 0.07692307692307693
-        CD14+ Monocytes: 0.3076923076923077
-        CD8 T cells: 0.07692307692307693
-        Dendritic cells: 0.07692307692307693
-        FCGR3A+ Monocytes: 0.3076923076923077
-        Megakaryocytes: 0.07692307692307693
-        NK cells: 0.07692307692307693
+      - B cells: 0.16666666666666666
+        CD14+ Monocytes: 0.16666666666666666
+        CD8 T cells: 0.16666666666666666
+        Dendritic cells: 0.16666666666666666
+        FCGR3A+ Monocytes: 0.16666666666666666
+        NK cells: 0.16666666666666666
+      - &natural
+        B cells: 0.20144659895352415
+        CD14+ Monocytes: 0.425284702985534
+        CD8 T cells: 0.12411511234225915
+        Dendritic cells: 0.03593413357956294
+        FCGR3A+ Monocytes: 0.08140966451215759
+        NK cells: 0.13180978762696213
+      - B cells: 0.1
+        CD14+ Monocytes: 0.1
+        CD8 T cells: 0.35
+        Dendritic cells: 0.05
+        FCGR3A+ Monocytes: 0.05
+        NK cells: 0.35
+      - B cells: 0.1
+        CD14+ Monocytes: 0.35
+        CD8 T cells: 0.1
+        Dendritic cells: 0.05
+        FCGR3A+ Monocytes: 0.35
+        NK cells: 0.05
       - B cells: 0.5
-        CD14+ Monocytes: 0.08333333333333333
-        CD8 T cells: 0.08333333333333333
-        Dendritic cells: 0.08333333333333333
-        FCGR3A+ Monocytes: 0.08333333333333333
-        Megakaryocytes: 0.08333333333333333
-        NK cells: 0.08333333333333333
+        CD14+ Monocytes: 0.1
+        CD8 T cells: 0.1
+        Dendritic cells: 0.1
+        FCGR3A+ Monocytes: 0.1
+        NK cells: 0.1
       seeds:
       - 11
       - 23
@@ -123,6 +121,6 @@ evaluation_job_configs:
       n_suggestions: 5
       seed: 0
       num_samples: 100000
-      prior: *id003
+      prior: *natural
   input:
     extra_configs.request.history: anonymous.evaluate.history

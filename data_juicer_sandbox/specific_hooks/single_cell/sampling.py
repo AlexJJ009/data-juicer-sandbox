@@ -72,9 +72,10 @@ def training_subset(data: ad.AnnData, candidate: dict[str, Any], request: Reques
 def sample(request: Request) -> dict[str, Any]:
     """Sample each candidate without replacement and return protocol artifacts.
 
-    Each type gets round(weight * budget) cells, capped independently per condition.
-    For odd totals control gets floor(n/2), perturbed gets the remainder; unused
-    capacity is not redistributed. All holdout controls are added outside budget.
+    Each type gets round(weight * budget / 2) cells per condition, capped
+    independently per condition; unused capacity is not redistributed. Equal
+    per-condition targets keep every sampled type paired, which the linear
+    baseline requires. All holdout controls are added outside budget.
     Results include actual_mixture, normalized over sampled non-holdout cells,
     with the same keys as the requested mixture. Empty non-holdout samples raise
     ValueError because no actual mixture can be normalized.
@@ -92,12 +93,9 @@ def sample(request: Request) -> dict[str, Any]:
         composition = {}
         actual_counts = {}
         for cell_type, weight in sorted(candidate["mixture"].items()):
-            total = round(weight * request.budget)
+            count = round(weight * request.budget / 2)
             actual_counts[cell_type] = 0
-            for condition, count in (
-                (request.conditions.control, total // 2),
-                (request.conditions.perturbed, total - total // 2),
-            ):
+            for condition in (request.conditions.control, request.conditions.perturbed):
                 available = np.flatnonzero((types == cell_type) & (conditions == condition))
                 chosen = rng.choice(available, size=min(count, len(available)), replace=False)
                 if len(chosen) < count:

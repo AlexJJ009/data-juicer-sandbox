@@ -32,8 +32,17 @@ def test_sampling_caps_and_odd_budget(payload):
     payload["budget"] = 5
     payload["candidates"][0]["mixture"] = {"A": 1.0, "B": 0.0}
     counts = sample(Request.from_dict(payload))["candidates"][0]["composition"]
-    assert counts["A|c"] == 2 and counts["A|s"] == 3
+    assert counts["A|c"] == counts["A|s"] == 2
     assert counts["B|c"] == counts["B|s"] == 0
+
+
+def test_small_weight_never_samples_one_condition_only(payload):
+    # One cell in total used to go to the perturbed side alone, leaving an
+    # unpaired type that the linear baseline rejects (seen in a real CLIMB round).
+    payload["candidates"][0]["mixture"] = {"A": 0.95, "B": 0.05}
+    counts = sample(Request.from_dict(payload))["candidates"][0]["composition"]
+    assert counts["B|c"] == counts["B|s"] == 0
+    assert counts["A|c"] == counts["A|s"] == 6
 
 
 def test_unknown_cell_type(payload):

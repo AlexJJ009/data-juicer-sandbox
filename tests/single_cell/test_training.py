@@ -129,3 +129,66 @@ def test_auto_backend_warns_on_cpu_fallback(payload: dict[str, Any], monkeypatch
     result = training.train_candidate(Request.from_dict(payload | {"training_backend": "auto"}), candidate)
     assert result["training_backend"] == "cpu"
     assert len(warnings) == 1 and "falling back to CPU" in warnings[0]
+
+
+@pytest.mark.parametrize("reference", ["full", "train"])
+def test_arithmetic_and_baseline_population_independent_of_mixture(
+    payload: dict[str, Any], monkeypatch: pytest.MonkeyPatch, reference: str
+) -> None:
+    """Use identical model weights with different subsets; only legacy mode may vary."""
+    import types
+
+    from data_juicer_sandbox.specific_hooks.single_cell.evaluation import (
+        baseline_predictions,
+    )
+    from data_juicer_sandbox.specific_hooks.single_cell.training import predict
+
+    req = Request.from_dict(payload | {"arithmetic_reference": reference})
+    data = ad.read_h5ad(req.data_path)
+    # Make the type-specific perturbations distinguishable in the linear baseline.
+    data.X = data.X.toarray()
+    data.X[(data.obs.type == "B") & (data.obs.condition == "s")] += [1, 2, 0, 0]
+    data.write_h5ad(req.data_path)
+    control = data[(data.obs.type == "held") & (data.obs.condition == "c")].copy()
+    subsets = [
+        data[data.obs.type.isin(["held", t]) & ~((data.obs.type == "held") & (data.obs.condition == "s"))].copy()
+        for t in ("A", "B")
+    ]
+    loaded, arithmetic = [], []
+
+    class FakeScgen:
+        """Capture the population supplied to the same persisted model."""
+
+        @classmethod
+        def load(cls, directory: str, adata: ad.AnnData) -> "FakeScgen":
+            """Record attached cells and return an inference stub."""
+            assert directory == "same-model"
+            loaded.append(adata.obs_names.tolist())
+            assert not ((adata.obs.type == "held") & (adata.obs.condition == "s")).any()
+            return cls()
+
+        def predict(self, **kwargs: Any) -> tuple[ad.AnnData, None]:
+            """Record arithmetic types and return unchanged controls."""
+            arithmetic.append(kwargs["restrict_arithmetic_to"])
+            return control, None
+
+    monkeypatch.setitem(sys.modules, "pertpy.tools", types.SimpleNamespace(Scgen=FakeScgen))
+    baselines = []
+    for subset in subsets:
+        predict(subset, control, {"id": "same", "model_dir": "same-model", "seed": 11}, req)
+        baselines.append(baseline_predictions(subset, req, np.zeros(data.n_vars))["linear"])
+    if reference == "full":
+        assert loaded[0] == loaded[1]
+        assert arithmetic == [{"type": ["A", "B"]}] * 2
+        np.testing.assert_array_equal(baselines[0], baselines[1])
+    else:
+        assert loaded[0] != loaded[1]
+        assert arithmetic == [{"type": ["A"]}, {"type": ["B"]}]
+        assert not np.array_equal(baselines[0], baselines[1])
+
+
+def test_arithmetic_reference_validation(payload: dict[str, Any]) -> None:
+    """Default to full and reject unsupported reference policies."""
+    assert Request.from_dict(payload).arithmetic_reference == "full"
+    with pytest.raises(ValueError, match="arithmetic_reference"):
+        Request.from_dict(payload | {"arithmetic_reference": "unknown"})

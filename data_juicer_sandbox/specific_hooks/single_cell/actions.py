@@ -80,8 +80,8 @@ def evaluate(request: Request) -> dict[str, Any]:
     results = []
     for candidate in request.candidates:
         train = training_subset(data, candidate, request)
-        predicted = predict(train, control, candidate, request)
-        baselines = baseline_predictions(train, request, control_mean)
+        predicted = predict(train, control, candidate, request, data=data)
+        baselines = baseline_predictions(train, request, control_mean, data=data)
         results.append(
             dict(
                 candidate,

@@ -38,7 +38,7 @@ def test_evaluate_keeps_candidate_artifacts_and_uses_prediction(payload, monkeyp
     candidate = sampled | {"model_dir": "unused"}
     request = Request.from_dict(payload | {"action": "evaluate", "candidates": [candidate], "n_degs": 3})
 
-    def predict(train, control, candidate, request):
+    def predict(train, control, candidate, request, *, data):
         assert train.n_obs == 18 and control.n_obs == 6
         assert candidate["actual_mixture"] == {"A": 0.5, "B": 0.5}
         result = control.copy()

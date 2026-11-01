@@ -7,6 +7,7 @@ import numpy as np
 import scanpy as sc
 
 from .config import Request
+from .reference import arithmetic_population
 
 
 def mean_expression(data: ad.AnnData) -> np.ndarray:
@@ -47,12 +48,22 @@ def metrics(
     }
 
 
-def baseline_predictions(train: ad.AnnData, request: Request, control: np.ndarray) -> dict[str, np.ndarray]:
-    """Return control and equally type-weighted linear mean predictions from candidate training cells.
+def baseline_predictions(
+    train: ad.AnnData, request: Request, control: np.ndarray, *, data: ad.AnnData | None = None
+) -> dict[str, np.ndarray]:
+    """Return control and equally type-weighted linear predictions from the configured reference.
 
-    Every non-holdout type present in train must have both conditions. Missing
-    pairs raise ValueError rather than silently changing the baseline population.
+    Args:
+        train: Candidate training cells, used only by the legacy train policy.
+        request: Validated reference policy and obs field configuration.
+        control: Holdout control mean expression in matching gene order.
+        data: Optional full input data to avoid disk reads in full mode.
+
+    Returns:
+        Control and linear gene means. Every included type must have paired
+        conditions; missing pairs in legacy mode raise ValueError.
     """
+    train = arithmetic_population(train, request, data)
     types = train.obs[request.fields.cell_type]
     conditions = train.obs[request.fields.condition]
     deltas = []

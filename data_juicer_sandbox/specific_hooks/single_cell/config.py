@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+DEFAULT_ARITHMETIC_REFERENCE = "full"
 DEFAULT_TRAINING_BACKEND = "cpu"
 DEFAULT_MAX_PARALLEL = 1
 DEFAULT_N_DEGS = 100
@@ -67,6 +68,11 @@ class TrainOptions:
 class Request:
     """Validated worker request; candidates retain artifacts from previous actions.
 
+    arithmetic_reference defaults to full because candidate-dependent arithmetic
+    confounds training mixtures with inference populations (see reference.py).
+    train retains the legacy protocol for reproduction only.
+    API: https://pertpy.readthedocs.io/en/stable/usage/tools/pertpy.tools.Scgen.html
+
     training_backend defaults to cpu for compatibility with the original worker;
     auto enables JAX GPU discovery and CPU fallback. An explicit JAX_PLATFORMS
     environment policy still takes precedence in auto mode.
@@ -83,6 +89,7 @@ class Request:
     candidates: list[dict[str, Any]] = field(default_factory=list)
     budget: int | None = None
     train: TrainOptions = field(default_factory=TrainOptions)
+    arithmetic_reference: str = DEFAULT_ARITHMETIC_REFERENCE
     training_backend: str = DEFAULT_TRAINING_BACKEND
     max_parallel: int = DEFAULT_MAX_PARALLEL
     n_degs: int = DEFAULT_N_DEGS
@@ -108,6 +115,9 @@ class Request:
         backend = value.get("training_backend", DEFAULT_TRAINING_BACKEND)
         if backend not in ("cpu", "auto"):
             raise ValueError("training_backend must be cpu or auto")
+        reference = value.get("arithmetic_reference", DEFAULT_ARITHMETIC_REFERENCE)
+        if reference not in ("full", "train"):
+            raise ValueError("arithmetic_reference must be full or train")
         options = _parse_train_options(value)
         candidates = _parse_candidates(value.get("candidates", []), action, holdout)
         return cls(
@@ -119,6 +129,7 @@ class Request:
             budget=budget,
             train=options,
             training_backend=backend,
+            arithmetic_reference=reference,
             max_parallel=_integer(value.get("max_parallel", DEFAULT_MAX_PARALLEL), "max_parallel"),
             n_degs=_integer(value.get("n_degs", DEFAULT_N_DEGS), "n_degs", minimum=2),
             payload=dict(value),

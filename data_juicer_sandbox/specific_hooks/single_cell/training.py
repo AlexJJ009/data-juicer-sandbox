@@ -14,6 +14,7 @@ import numpy as np
 from loguru import logger
 
 from .config import Request
+from .reference import arithmetic_population
 
 
 def train_candidate(request: Request, candidate: dict[str, Any]) -> dict[str, Any]:
@@ -60,14 +61,22 @@ def train_candidate(request: Request, candidate: dict[str, Any]) -> dict[str, An
     )
 
 
-def predict(train: ad.AnnData, control: ad.AnnData, candidate: dict[str, Any], request: Request) -> ad.AnnData:
+def predict(
+    train: ad.AnnData,
+    control: ad.AnnData,
+    candidate: dict[str, Any],
+    request: Request,
+    *,
+    data: ad.AnnData | None = None,
+) -> ad.AnnData:
     """Load a candidate model and return seeded Scgen.predict output for holdout controls.
 
     Args:
         train: Candidate training subset, in the order recorded by its manifest.
         control: Held-out type's control cells to predict.
         candidate: Train result containing model_dir and seed.
-        request: Validated field, condition and holdout configuration.
+        request: Validated field, condition, holdout and reference policy.
+        data: Optional complete data to avoid repeated disk reads in full mode.
 
     Returns:
         AnnData containing predicted log-normalized stimulated expression.
@@ -78,9 +87,10 @@ def predict(train: ad.AnnData, control: ad.AnnData, candidate: dict[str, Any], r
     """
     from pertpy.tools import Scgen
 
-    model = Scgen.load(candidate["model_dir"], adata=train)
+    reference = arithmetic_population(train, request, data)
+    model = Scgen.load(candidate["model_dir"], adata=reference)
     # Exclude the held-out type from latent arithmetic: it has no matched stim.
-    types = sorted(set(train.obs[request.fields.cell_type]) - {request.holdout_cell_type})
+    types = sorted(set(reference.obs[request.fields.cell_type]) - {request.holdout_cell_type})
     if not types:
         raise ValueError(f"candidate {candidate['id']}: no non-holdout training types")
     with seeded_numpy_default_rng(candidate["seed"]):

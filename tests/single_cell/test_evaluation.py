@@ -20,7 +20,7 @@ def test_metrics_and_baselines(payload):
     result = metrics(ctrl, truth, ctrl, np.array([0, 1, 3]))
     assert result["r2_all"] == pytest.approx(27**2 / (21 * 38))
     assert result["delta_pearson"] is None
-    req = Request.from_dict(payload)
+    req = Request.from_dict(payload | {"arithmetic_reference": "train"})
     a = ad.read_h5ad(req.data_path)
     train = a[~((a.obs.type == "held") & (a.obs.condition == "s"))].copy()
     baselines = baseline_predictions(train, req, ctrl)
@@ -51,5 +51,5 @@ def test_linear_baseline_weights_types_equally(payload):
         index=[f"cell{i}" for i in range(8)],
     )
     train = ad.AnnData(np.vstack([control, control + delta_a] + [control] * 3 + [control + delta_b] * 3), obs=obs)
-    result = baseline_predictions(train, Request.from_dict(payload), control)
+    result = baseline_predictions(train, Request.from_dict(payload | {"arithmetic_reference": "train"}), control)
     np.testing.assert_allclose(result["linear"], control + (delta_a + delta_b) / 2)

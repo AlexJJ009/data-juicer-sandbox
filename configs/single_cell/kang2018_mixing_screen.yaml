@@ -1,0 +1,225 @@
+# Dirichlet alpha=1, seed=20261101; 12 draws after uniform/natural/6 heavy mixtures.
+# Capacity policy: cap each share at min(ctrl,stim)/(2400/2); redistribute
+# excess proportionally among uncapped types until normalized and feasible.
+# This also adjusts the nominal dendritic-heavy weight 0.5.
+# Launch with WANDB_MODE=offline; training_backend=auto.
+project_name: task4-single-cell-mixing
+experiment_name: kang2018-screen-20261101
+work_dir: /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018-screen
+hpo_config: null
+max_iter_num: 2
+iter_updater:
+  anonymous.suggest.mixtures: anonymous.sample.extra_configs.request.mixtures
+  anonymous.evaluate.history: anonymous.evaluate.extra_configs.request.history
+execution_job_configs:
+- hook: SingleCellSampleHook
+  meta_name: sample
+  output:
+  - candidates
+  extra_configs:
+    python: /root/autodl-tmp/task4-datajuicer/envs/single-cell/bin/python
+    request:
+      data_path: /root/autodl-tmp/task4-datajuicer/runs/refine/refined.h5ad
+      work_dir: /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018-screen
+      fields: &id001
+        cell_type: cell_type
+        condition: label
+        donor: replicate
+      conditions: &id002
+        control: ctrl
+        perturbed: stim
+      holdout_cell_type: CD4 T cells
+      budget: 2400
+      mixtures:
+      - B cells: 0.16666666666666669
+        CD14+ Monocytes: 0.16666666666666669
+        CD8 T cells: 0.16666666666666669
+        Dendritic cells: 0.16666666666666669
+        FCGR3A+ Monocytes: 0.16666666666666669
+        NK cells: 0.16666666666666669
+      - B cells: 0.20144659895352415
+        CD14+ Monocytes: 0.425284702985534
+        CD8 T cells: 0.12411511234225915
+        Dendritic cells: 0.03593413357956294
+        FCGR3A+ Monocytes: 0.08140966451215759
+        NK cells: 0.13180978762696213
+      - B cells: 0.5000000000000001
+        CD14+ Monocytes: 0.10000000000000002
+        CD8 T cells: 0.10000000000000002
+        Dendritic cells: 0.10000000000000002
+        FCGR3A+ Monocytes: 0.10000000000000002
+        NK cells: 0.10000000000000002
+      - B cells: 0.10000000000000002
+        CD14+ Monocytes: 0.5000000000000001
+        CD8 T cells: 0.10000000000000002
+        Dendritic cells: 0.10000000000000002
+        FCGR3A+ Monocytes: 0.10000000000000002
+        NK cells: 0.10000000000000002
+      - B cells: 0.10000000000000002
+        CD14+ Monocytes: 0.10000000000000002
+        CD8 T cells: 0.5000000000000001
+        Dendritic cells: 0.10000000000000002
+        FCGR3A+ Monocytes: 0.10000000000000002
+        NK cells: 0.10000000000000002
+      - B cells: 0.16266666666666668
+        CD14+ Monocytes: 0.16266666666666668
+        CD8 T cells: 0.16266666666666668
+        Dendritic cells: 0.18666666666666668
+        FCGR3A+ Monocytes: 0.16266666666666668
+        NK cells: 0.16266666666666668
+      - B cells: 0.11633333333333334
+        CD14+ Monocytes: 0.11633333333333334
+        CD8 T cells: 0.11633333333333334
+        Dendritic cells: 0.11633333333333334
+        FCGR3A+ Monocytes: 0.41833333333333333
+        NK cells: 0.11633333333333334
+      - B cells: 0.1
+        CD14+ Monocytes: 0.1
+        CD8 T cells: 0.1
+        Dendritic cells: 0.1
+        FCGR3A+ Monocytes: 0.1
+        NK cells: 0.5
+      - B cells: 0.4952556705293591
+        CD14+ Monocytes: 0.0772805945308061
+        CD8 T cells: 0.189334240295666
+        Dendritic cells: 0.18666666666666668
+        FCGR3A+ Monocytes: 0.051028942394438004
+        NK cells: 0.0004338855830641111
+      - B cells: 0.0659163309822509
+        CD14+ Monocytes: 0.2948787880089697
+        CD8 T cells: 0.25375069935597067
+        Dendritic cells: 0.1318258282935547
+        FCGR3A+ Monocytes: 0.15799968065585893
+        NK cells: 0.09562867270339498
+      - B cells: 0.09064984462182997
+        CD14+ Monocytes: 0.0862901584186996
+        CD8 T cells: 0.14503275324652776
+        Dendritic cells: 0.18666666666666668
+        FCGR3A+ Monocytes: 0.41833333333333333
+        NK cells: 0.07302724371294268
+      - B cells: 0.10977875210480932
+        CD14+ Monocytes: 0.2038531571084849
+        CD8 T cells: 0.15501499390729953
+        Dendritic cells: 0.11877138739005143
+        FCGR3A+ Monocytes: 0.3648260673539421
+        NK cells: 0.04775564213541276
+      - B cells: 0.3891113750051123
+        CD14+ Monocytes: 0.04686244635656565
+        CD8 T cells: 0.24202610427851443
+        Dendritic cells: 0.12839416575356535
+        FCGR3A+ Monocytes: 0.16870864629863647
+        NK cells: 0.02489726230760591
+      - B cells: 0.30698859652564203
+        CD14+ Monocytes: 0.035879159889828684
+        CD8 T cells: 0.05499495517647435
+        Dendritic cells: 0.1638686565968664
+        FCGR3A+ Monocytes: 0.027968616079231116
+        NK cells: 0.41030001573195757
+      - B cells: 0.008125170222410459
+        CD14+ Monocytes: 0.21107674981710853
+        CD8 T cells: 0.052831791430573295
+        Dendritic cells: 0.18666666666666668
+        FCGR3A+ Monocytes: 0.3518742435113928
+        NK cells: 0.18942537835184822
+      - B cells: 0.19754855028207297
+        CD14+ Monocytes: 0.41957446033991475
+        CD8 T cells: 0.1112589154975741
+        Dendritic cells: 0.17318992350956436
+        FCGR3A+ Monocytes: 0.04840273653353716
+        NK cells: 0.050025413837336705
+      - B cells: 0.17073799693731834
+        CD14+ Monocytes: 0.009024034187892388
+        CD8 T cells: 0.19389701469332232
+        Dendritic cells: 0.11553385877202406
+        FCGR3A+ Monocytes: 0.07232448638681141
+        NK cells: 0.4384826090226314
+      - B cells: 0.09649803004404277
+        CD14+ Monocytes: 0.23480002991384896
+        CD8 T cells: 0.21880678454792263
+        Dendritic cells: 0.06668940080877565
+        FCGR3A+ Monocytes: 0.041265760017366454
+        NK cells: 0.3419399946680436
+      - B cells: 0.4633225875848902
+        CD14+ Monocytes: 0.023716251851432134
+        CD8 T cells: 0.06302089332907292
+        Dendritic cells: 0.18666666666666668
+        FCGR3A+ Monocytes: 0.09414350038383484
+        NK cells: 0.1691301001841033
+      - B cells: 0.19402572604955218
+        CD14+ Monocytes: 0.2902204791850463
+        CD8 T cells: 0.30065334686833833
+        Dendritic cells: 0.18666666666666668
+        FCGR3A+ Monocytes: 0.02747787815026704
+        NK cells: 0.0009559030801295789
+      seeds:
+      - 11
+      - 23
+      - 37
+      arithmetic_reference: full
+- hook: SingleCellTrainHook
+  meta_name: train
+  output:
+  - candidates
+  extra_configs:
+    python: /root/autodl-tmp/task4-datajuicer/envs/single-cell/bin/python
+    request:
+      data_path: /root/autodl-tmp/task4-datajuicer/runs/refine/refined.h5ad
+      work_dir: /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018-screen
+      fields: *id001
+      conditions: *id002
+      holdout_cell_type: CD4 T cells
+      train:
+        max_epochs: 100
+        batch_size: 32
+        early_stopping: true
+        early_stopping_patience: 25
+      max_parallel: 5
+      training_backend: auto
+      arithmetic_reference: full
+  input:
+    extra_configs.request.candidates: anonymous.sample.candidates
+evaluation_job_configs:
+- hook: SingleCellEvaluateHook
+  meta_name: evaluate
+  output:
+  - candidates
+  - history
+  extra_configs:
+    python: /root/autodl-tmp/task4-datajuicer/envs/single-cell/bin/python
+    request:
+      data_path: /root/autodl-tmp/task4-datajuicer/runs/refine/refined.h5ad
+      work_dir: /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018-screen
+      fields: *id001
+      conditions: *id002
+      holdout_cell_type: CD4 T cells
+      n_degs: 100
+      metric: r2_top_degs
+      history: []
+      arithmetic_reference: full
+  input:
+    extra_configs.request.candidates: anonymous.train.candidates
+- hook: SingleCellSuggestHook
+  meta_name: suggest
+  output:
+  - mixtures
+  extra_configs:
+    python: /root/autodl-tmp/task4-datajuicer/envs/single-cell/bin/python
+    request:
+      data_path: /root/autodl-tmp/task4-datajuicer/runs/refine/refined.h5ad
+      work_dir: /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018-screen
+      fields: *id001
+      conditions: *id002
+      holdout_cell_type: CD4 T cells
+      n_suggestions: 5
+      seed: 0
+      num_samples: 100000
+      prior:
+        B cells: 0.20144659895352415
+        CD14+ Monocytes: 0.425284702985534
+        CD8 T cells: 0.12411511234225915
+        Dendritic cells: 0.03593413357956294
+        FCGR3A+ Monocytes: 0.08140966451215759
+        NK cells: 0.13180978762696213
+      arithmetic_reference: full
+  input:
+    extra_configs.request.history: anonymous.evaluate.history

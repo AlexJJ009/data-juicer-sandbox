@@ -1,4 +1,4 @@
-"""Run candidate training in disposable spawn processes with bounded CPU concurrency."""
+"""Run candidate training in disposable spawn processes with bounded CPU concurrency and shared GPU memory."""
 
 from __future__ import annotations
 
@@ -19,6 +19,9 @@ from .config import Request
 
 # Resource policy from the worker contract, not a model hyperparameter.
 MAX_THREADS_PER_CHILD = 4
+# Divide JAX's documented default budget across concurrent children, including
+# when allocation is on demand: https://docs.jax.dev/en/latest/gpu_memory_allocation.html
+GPU_MEMORY_FRACTION = 0.75
 THREAD_ENVIRONMENTS = (
     "OMP_NUM_THREADS",
     "OPENBLAS_NUM_THREADS",
@@ -31,16 +34,29 @@ THREAD_ENVIRONMENTS = (
 
 
 @contextmanager
-def training_environment(threads: int) -> Iterator[None]:
+def training_environment(threads: int, backend: str = "cpu", parallel: int = 1) -> Iterator[None]:
     """Set child import-time CPU limits to threads; yield None and restore the environment on exit.
+
+    Args:
+        threads: Positive per-child CPU thread count.
+        backend: cpu preserves the original worker policy; auto uses JAX discovery
+            with fallback (https://docs.jax.dev/en/latest/config_options.html#jax-platforms).
+        parallel: Positive concurrency; defaults to the original serial worker.
+
+    Returns:
+        A context manager yielding None and restoring all affected settings.
 
     The process pool must be created and shut down inside this context so replacement
     spawn processes inherit the limits too. This process-global context is not thread safe.
     """
+    if threads < 1 or parallel < 1 or backend not in ("cpu", "auto"):
+        raise ValueError("training environment requires positive threads/parallel and cpu or auto backend")
     environment = {key: str(threads) for key in THREAD_ENVIRONMENTS}
     environment.update(
         TF_NUM_INTEROP_THREADS="1",
-        JAX_PLATFORMS="cpu",
+        JAX_PLATFORMS="cpu" if backend == "cpu" else os.environ.get("JAX_PLATFORMS", ""),
+        XLA_PYTHON_CLIENT_PREALLOCATE="false",
+        XLA_PYTHON_CLIENT_MEM_FRACTION=str(GPU_MEMORY_FRACTION / parallel),
         XLA_FLAGS=f"--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads={threads}",
     )
     previous = {key: os.environ.get(key) for key in environment}
@@ -137,7 +153,7 @@ def train_candidates(request: Request) -> list[dict[str, Any]]:
         cpu_groups.put(cpus[slot * threads : (slot + 1) * threads])
     results = {}
     try:
-        with training_environment(threads):
+        with training_environment(threads, backend=request.training_backend, parallel=parallel):
             executor = ProcessPoolExecutor(
                 max_workers=parallel,
                 mp_context=context,

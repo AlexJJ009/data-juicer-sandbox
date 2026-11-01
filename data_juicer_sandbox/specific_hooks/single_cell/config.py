@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+DEFAULT_TRAINING_BACKEND = "cpu"
 DEFAULT_MAX_PARALLEL = 1
 DEFAULT_N_DEGS = 100
 DEFAULT_HOLDOUT_CELL_TYPE = "CD4 T cells"
@@ -66,6 +67,9 @@ class TrainOptions:
 class Request:
     """Validated worker request; candidates retain artifacts from previous actions.
 
+    training_backend defaults to cpu for compatibility with the original worker;
+    auto enables JAX GPU discovery and CPU fallback. An explicit JAX_PLATFORMS
+    environment policy still takes precedence in auto mode.
     Use from_dict or from_json for validation. Extra top-level fields are retained
     in payload so an independently registered suggest action can parse its options.
     """
@@ -79,6 +83,7 @@ class Request:
     candidates: list[dict[str, Any]] = field(default_factory=list)
     budget: int | None = None
     train: TrainOptions = field(default_factory=TrainOptions)
+    training_backend: str = DEFAULT_TRAINING_BACKEND
     max_parallel: int = DEFAULT_MAX_PARALLEL
     n_degs: int = DEFAULT_N_DEGS
     payload: dict[str, Any] = field(default_factory=dict)
@@ -100,6 +105,9 @@ class Request:
         budget = value.get("budget")
         if budget is not None or action == "sample":
             budget = _integer(budget, "budget")
+        backend = value.get("training_backend", DEFAULT_TRAINING_BACKEND)
+        if backend not in ("cpu", "auto"):
+            raise ValueError("training_backend must be cpu or auto")
         options = _parse_train_options(value)
         candidates = _parse_candidates(value.get("candidates", []), action, holdout)
         return cls(
@@ -110,6 +118,7 @@ class Request:
             candidates=candidates,
             budget=budget,
             train=options,
+            training_backend=backend,
             max_parallel=_integer(value.get("max_parallel", DEFAULT_MAX_PARALLEL), "max_parallel"),
             n_degs=_integer(value.get("n_degs", DEFAULT_N_DEGS), "n_degs", minimum=2),
             payload=dict(value),

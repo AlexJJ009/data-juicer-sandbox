@@ -34,6 +34,12 @@ single-cell = [
     "lightgbm>=4.7.0",
 ]
 
+# CUDA 12 plugin version matches the tested JAX stack; retain the CPU-only extra.
+single-cell-gpu = [
+    "py-data-juicer-sandbox[single-cell]",
+    "jax[cuda12]==0.12.0.1; python_version >= '3.12' and sys_platform == 'linux'",
+]
+
 # Development & Tools
 dev = [
     "coverage",

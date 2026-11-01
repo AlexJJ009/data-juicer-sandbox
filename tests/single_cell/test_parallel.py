@@ -113,3 +113,27 @@ def test_spawn_recycles_processes_and_releases_cpu_groups(payload, monkeypatch):
     assert len({candidate["pid"] for candidate in results}) == 4
     assert [candidate["id"] for candidate in results] == [candidate["id"] for candidate in candidates]
     assert all(len(candidate["cpus"]) == int(candidate["threads"]) <= 4 for candidate in results)
+
+
+@pytest.mark.parametrize("inherited", [None, "cpu"])
+def test_auto_backend_child_environment_is_bounded_and_restored(
+    monkeypatch: pytest.MonkeyPatch, inherited: str | None
+) -> None:
+    """Allow JAX discovery without overriding an explicit CPU policy or preallocating the card."""
+    import os
+
+    from data_juicer_sandbox.specific_hooks.single_cell.parallel import (
+        training_environment,
+    )
+
+    if inherited is None:
+        monkeypatch.delenv("JAX_PLATFORMS", raising=False)
+    else:
+        monkeypatch.setenv("JAX_PLATFORMS", inherited)
+    monkeypatch.setenv("XLA_PYTHON_CLIENT_PREALLOCATE", "true")
+    with training_environment(4, backend="auto", parallel=5):
+        assert os.environ.get("JAX_PLATFORMS", "") == (inherited or "")
+        assert os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] == "false"
+        assert float(os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"]) == pytest.approx(0.15)
+    assert os.environ.get("JAX_PLATFORMS") == inherited
+    assert os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] == "true"

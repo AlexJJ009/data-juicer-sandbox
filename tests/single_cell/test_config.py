@@ -1,5 +1,7 @@
 """Synthetic config checks for the single-cell worker."""
 
+from typing import Any
+
 import pytest
 
 from data_juicer_sandbox.specific_hooks.single_cell.config import Request
@@ -34,3 +36,11 @@ def test_invalid_types_and_duplicate_ids(payload):
 def test_default_holdout(payload):
     del payload["holdout_cell_type"]
     assert Request.from_dict(payload).holdout_cell_type == "CD4 T cells"
+
+
+def test_training_backend_validation(payload: dict[str, Any]) -> None:
+    """Keep the CPU default and reject unsupported backend policy names."""
+    assert Request.from_dict(payload).training_backend == "cpu"
+    assert Request.from_dict(payload | {"training_backend": "auto"}).training_backend == "auto"
+    with pytest.raises(ValueError, match="training_backend"):
+        Request.from_dict(payload | {"training_backend": "cuda_typo"})

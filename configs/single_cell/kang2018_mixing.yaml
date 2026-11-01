@@ -4,9 +4,9 @@
 # budget 2400 keeps every mixture within the smallest per-condition pool
 # (Dendritic cells: 224 ctrl), so the actual mixture equals the requested one.
 # Paths shared by workers use YAML anchors and can be changed at their definitions.
-project_name: single-cell-mixing
-experiment_name: kang2018
-work_dir: &run_dir /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018
+project_name: task4-single-cell-mixing
+experiment_name: kang2018-20261101-r2
+work_dir: &run_dir /root/autodl-tmp/task4-datajuicer/runs/mixing/kang2018-r2
 hpo_config: null
 max_iter_num: 2
 iter_updater:
@@ -85,6 +85,7 @@ execution_job_configs:
         early_stopping: true
         early_stopping_patience: 25
       max_parallel: 5
+      training_backend: auto
   input:
     extra_configs.request.candidates: anonymous.sample.candidates
 evaluation_job_configs:

@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+from collections import deque
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar
@@ -12,7 +13,17 @@ from loguru import logger
 
 from data_juicer_sandbox.hooks import HOOK_MAPPING, BaseHook
 
+from .observability import record_evaluation, record_suggestions
+
+LOG_TAIL_LINES = 30
+
 WORKER_MODULE = "data_juicer_sandbox.specific_hooks.single_cell.worker"
+
+
+def _log_diagnostic(path: Path) -> str:
+    with path.open(encoding="utf-8", errors="replace") as log:
+        tail = "".join(deque(log, maxlen=LOG_TAIL_LINES))
+    return f"see {path}; last {LOG_TAIL_LINES} lines:\n{tail}"
 
 
 class SingleCellWorkerHook(BaseHook):
@@ -40,18 +51,18 @@ class SingleCellWorkerHook(BaseHook):
         settings = prepare_side_configs(self.extra_cfg)
         self.extra_cfg = settings.as_dict() if isinstance(settings, Namespace) else settings
 
-    def prepare_request(self, request: dict) -> dict:
+    def prepare_request(self, request: dict[str, Any]) -> dict[str, Any]:
         """Adapt a copied request to this stage and return the worker payload."""
         return request
 
-    def prepare_result(self, request: dict, result: dict) -> dict:
+    def prepare_result(self, request: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
         """Adapt a worker result using its request and return available outputs."""
         return result
 
-    def hook(self, **kwargs: Any) -> tuple:
+    def hook(self, **kwargs: Any) -> tuple[Any, ...]:
         """Call the worker with extra_configs; return values in output_keys order.
 
-        Raises RuntimeError with stderr on worker failure or missing results.
+        Raises RuntimeError with the log path and tail on worker failure or invalid results.
         """
         settings = self.extra_cfg
         if not settings or not settings.get("python"):
@@ -75,25 +86,32 @@ class SingleCellWorkerHook(BaseHook):
             command.extend(["-m", settings.get("worker_module", WORKER_MODULE)])
         command.extend(["--request", str(request_path), "--result", str(result_path)])
         logger.info("Single-cell {} iteration {}: {}", self.action, iteration, request_path)
-        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        log_path = directory / f"{self.action}.log"
+        with log_path.open("w", encoding="utf-8") as log:
+            completed = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=False)
         if completed.returncode != 0:
-            raise RuntimeError(f"Worker {self.action} exited {completed.returncode}: {completed.stderr}")
+            raise RuntimeError(f"Worker {self.action} exited {completed.returncode}; {_log_diagnostic(log_path)}")
         if not result_path.is_file():
-            raise RuntimeError(f"Worker {self.action} returned no result at {result_path}: {completed.stderr}")
+            raise RuntimeError(f"Worker {self.action} returned no result at {result_path}; {_log_diagnostic(log_path)}")
         try:
             result = json.loads(result_path.read_text())
         except (ValueError, OSError) as error:
             raise RuntimeError(
-                f"Worker {self.action} result cannot be read: {error}; stderr: {completed.stderr}"
+                f"Worker {self.action} result cannot be read: {error}; {_log_diagnostic(log_path)}"
             ) from error
         if not isinstance(result, dict):
-            raise ValueError(f"Worker {self.action} result must be a JSON object.")
+            raise ValueError(f"Worker {self.action} result must be a JSON object; {_log_diagnostic(log_path)}")
         result = self.prepare_result(request, result)
+        if self.action == "evaluate":
+            metric = settings["request"].get("metric", "r2_top_degs")
+            record_evaluation(result["candidates"], directory, iteration, metric, self.watcher)
+        elif self.action == "suggest":
+            record_suggestions(result["mixtures"], directory, iteration, self.watcher)
         result.update(request_path=str(request_path), result_path=str(result_path))
         keys = self.output_keys or list(result)
         missing = [key for key in keys if key not in result]
         if missing:
-            raise ValueError(f"Worker {self.action} result missing output keys: {missing}")
+            raise ValueError(f"Worker {self.action} result missing output keys: {missing}; {_log_diagnostic(log_path)}")
         return tuple(result[key] for key in keys)
 
 
@@ -102,7 +120,7 @@ class SingleCellSampleHook(SingleCellWorkerHook):
 
     action = "sample"
 
-    def prepare_request(self, request: dict) -> dict:
+    def prepare_request(self, request: dict[str, Any]) -> dict[str, Any]:
         """Expand mixtures × seeds with iteration-specific IDs; return sample payload."""
         if "mixtures" in request:
             mixtures = request.pop("mixtures")
@@ -131,13 +149,13 @@ class SingleCellEvaluateHook(SingleCellWorkerHook):
 
     action = "evaluate"
 
-    def prepare_request(self, request: dict) -> dict:
+    def prepare_request(self, request: dict[str, Any]) -> dict[str, Any]:
         """Keep metric and accumulated history in the hook; return evaluation payload."""
         request.pop("history", None)
         request.pop("metric", None)
         return request
 
-    def prepare_result(self, request: dict, result: dict) -> dict:
+    def prepare_result(self, request: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
         """Append this round's configured metric to prior history; return both outputs."""
         settings = self.extra_cfg
         options = settings["request"]

@@ -281,3 +281,82 @@ def test_two_distinct_mixtures_explain_training_minimum() -> None:
     history = [{"mixture": {"A": x, "B": 1 - x}, "score": x} for x in (0.1, 0.9)]
     with pytest.raises(ValueError, match="at least 3 distinct mixtures"):
         suggest(search_request({"history": history}))
+
+
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_worker_output_is_persisted_and_replaced(tmp_path: Path, exit_code: int) -> None:
+    """Keep both worker streams on success and include the log location on failure."""
+    script = tmp_path / "logging_worker.py"
+    script.write_text(
+        "import sys, json\nfrom pathlib import Path\n"
+        "print('worker stdout')\nprint('worker stderr', file=sys.stderr)\n"
+        f"if {exit_code}: sys.exit({exit_code})\n"
+        "Path(sys.argv[-1]).write_text(json.dumps({'candidates': []}))\n"
+    )
+    hook = sample_hook(tmp_path, script)
+    directory = tmp_path / "iter_1"
+    directory.mkdir()
+    log = directory / "sample.log"
+    log.write_text("stale output")
+    if exit_code:
+        with pytest.raises(RuntimeError) as caught:
+            hook.hook()
+        assert str(log) in str(caught.value)
+        assert "worker stderr" in str(caught.value)
+    else:
+        hook.hook()
+    assert "worker stdout" in log.read_text()
+    assert "worker stderr" in log.read_text()
+    assert "stale output" not in log.read_text()
+
+
+def test_offline_watcher_contains_scalars_and_table(tmp_path: Path, fake_worker: Path) -> None:
+    """Run the real watcher offline in a fresh process and retain its metric records."""
+    import os
+
+    config = yaml.safe_load(CONFIG.read_text())
+    root = tmp_path / "offline-experiment"
+    root.mkdir()
+    config["work_dir"] = str(root)
+    config["max_iter_num"] = 1
+    for job in config["execution_job_configs"] + config["evaluation_job_configs"]:
+        job["extra_configs"]["python"] = sys.executable
+        job["extra_configs"]["worker_script"] = str(fake_worker)
+        job["extra_configs"]["request"]["work_dir"] = str(root)
+    path = tmp_path / "offline.yaml"
+    path.write_text(yaml.safe_dump(config))
+    environment = dict(os.environ, WANDB_MODE="offline", WANDB_DIR=str(root))
+    environment.pop("WANDB_API_KEY", None)
+    completed = subprocess.run(
+        [sys.executable, "-m", "data_juicer_sandbox.specific_hooks.single_cell.launch", "--config", str(path)],
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    runs = list((root / "wandb").glob("offline-run-*"))
+    assert len(runs) == 1
+    assert list(runs[0].glob("*.wandb"))
+    tables = list((runs[0] / "files/media/table").rglob("*.table.json"))
+    assert len(tables) == 1
+    assert len(json.loads(tables[0].read_text())["data"]) == 15
+    summary = json.loads((root / "iter_1/summary.json").read_text())
+    assert "r1/m1/s11/metrics/r2_top_degs" in summary["scalars"]
+    for action in ("sample", "train", "evaluate", "suggest"):
+        assert (root / f"iter_1/{action}.log").is_file()
+
+
+@pytest.mark.parametrize("result", ["not-json", "[]", "{}"])
+def test_invalid_worker_result_points_to_log(tmp_path: Path, result: str) -> None:
+    """Give diagnostic paths for malformed JSON, result shape and missing output keys."""
+    script = tmp_path / "invalid_worker.py"
+    script.write_text(
+        "import sys\nfrom pathlib import Path\n"
+        "print('result diagnostic', file=sys.stderr)\n"
+        f"Path(sys.argv[-1]).write_text({result!r})\n"
+    )
+    with pytest.raises((RuntimeError, ValueError)) as caught:
+        sample_hook(tmp_path, script).hook()
+    message = str(caught.value)
+    assert str(tmp_path / "iter_1/sample.log") in message
+    assert "result diagnostic" in message

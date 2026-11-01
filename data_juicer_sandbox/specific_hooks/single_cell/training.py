@@ -29,10 +29,15 @@ def train_candidate(request: Request, candidate: dict[str, Any]) -> dict[str, An
     Called in a CPU-limited fresh worker process. Uses Scgen architecture defaults:
     https://pertpy.readthedocs.io/en/stable/usage/tools/pertpy.tools.Scgen.html
     """
+    import jax
     from pertpy.tools import Scgen
 
     from .sampling import read_data, training_subset
 
+    backend = jax.default_backend()
+    if request.training_backend == "auto" and backend == "cpu":
+        logger.warning("GPU unavailable or disabled; falling back to CPU for {}", candidate["id"])
+    logger.info("Candidate {} uses JAX backend {}: {}", candidate["id"], backend, jax.devices())
     train = training_subset(read_data(request), candidate, request)
     seed = candidate["seed"]
     random.seed(seed)
@@ -50,7 +55,9 @@ def train_candidate(request: Request, candidate: dict[str, Any]) -> dict[str, An
     directory = request.work_dir / candidate["id"] / "model"
     model.save(directory, overwrite=True)
     logger.info("Trained {}: {} epochs, {:.3f}s", candidate["id"], epochs, seconds)
-    return dict(candidate, model_dir=str(directory), train_seconds=seconds, epochs_trained=epochs)
+    return dict(
+        candidate, model_dir=str(directory), train_seconds=seconds, epochs_trained=epochs, training_backend=backend
+    )
 
 
 def predict(train: ad.AnnData, control: ad.AnnData, candidate: dict[str, Any], request: Request) -> ad.AnnData:
